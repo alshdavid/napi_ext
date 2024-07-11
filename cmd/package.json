@@ -1,0 +1,8 @@
+{
+  "name": "@workspace/napi_sandbox_cmd",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@workspace/napi_sandbox": "*"
+  }
+}

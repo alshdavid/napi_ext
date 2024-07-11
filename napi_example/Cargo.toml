@@ -1,0 +1,18 @@
+[package]
+name = "napi_sandbox"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "2.*", default-features = false, features = ["napi8", "tokio_rt", "serde-json", "async"] }
+napi-derive = "2.*"
+napi_async_local = { path = "../napi_async_local" }
+once_cell = "*"
+futures = "*"
+async-std = "1.12.0"
+
+[build-dependencies]
+napi-build = "2.*"

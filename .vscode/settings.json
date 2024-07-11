@@ -1,0 +1,12 @@
+{
+  "rust-analyzer.cargo.features": [],
+  "rust-analyzer.procMacro.ignored": { "napi-derive": ["napi"] },
+  "rust-analyzer.rustfmt.overrideCommand": ["rustfmt", "+nightly"],
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer", 
+    "editor.formatOnSave": true 
+  },
+  "[toml]": {
+    "editor.formatOnSave": false
+  }
+}
