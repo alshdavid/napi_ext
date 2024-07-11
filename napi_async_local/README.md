@@ -4,6 +4,10 @@ This crate extends [napi-rs](https://github.com/napi-rs/napi-rs) with the abilit
 
 Run local futures with:
 ```rust
+use napi::*;
+use napi_derive::napi;
+use napi_async_local::SpawnLocalExt;
+
 #[napi]
 fn my_js_func(env: Env) -> napi::Result<JsObject> {
   env.spawn_local(|env| async {
