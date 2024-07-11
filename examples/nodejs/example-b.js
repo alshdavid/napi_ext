@@ -1,4 +1,4 @@
-import napi from '@workspace/napi_sandbox'
+import napi from '@workspace/addon'
 
 napi.exampleB((data) => {})
 

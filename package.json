@@ -2,7 +2,6 @@
     "name": "@workspace/napi_sandbox",
     "private": true,
     "workspaces": [
-        "./cmd",
-        "./napi_sandbox"
+        "./examples/*"
     ]
 }

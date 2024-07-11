@@ -3,6 +3,6 @@
 resolver = "2"
 
 members = [
-    "./napi_example",
+    "./examples/addon",
     "napi_async_local",
 ]

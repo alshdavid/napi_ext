@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
-    "@workspace/napi_sandbox": "*"
+    "@workspace/addon": "*"
   }
 }
