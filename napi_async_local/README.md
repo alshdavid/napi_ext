@@ -2,6 +2,17 @@
 
 This crate extends [napi-rs](https://github.com/napi-rs/napi-rs) with the ability to run local futures.
 
+Run local futures with:
+```rust
+#[napi]
+fn my_js_func(env: Env) -> napi::Result<JsObject> {
+  env.spawn_local(move |env| async move {
+    println!("Running async!");
+    Ok(())
+  })
+}
+```
+
 This allows for the usage of Channels, Timers and other async utilities in Rust without blocking the main JavaScript thread while retaining the capability of interacting with the underlying JavaScript values.
 
 ## Installation
