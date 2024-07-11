@@ -6,7 +6,7 @@ Run local futures with:
 ```rust
 #[napi]
 fn my_js_func(env: Env) -> napi::Result<JsObject> {
-  env.spawn_local(move |env| async move {
+  env.spawn_local(|env| async {
     println!("Running async!");
     Ok(())
   })
