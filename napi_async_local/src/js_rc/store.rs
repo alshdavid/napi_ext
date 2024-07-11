@@ -19,9 +19,24 @@ thread_local! {
 }
 
 /*
-globalThis = {
-  __napi_global__: []
-}
+  Currently this takes JavaScript values and stores them in a JavaScript array
+  on the Nodejs "globalThis" object.
+
+  This ensures they won't be GC'd by Nodejs and allows their life cycle to be
+  managed by the Rust addon.
+
+  The downside is that this is a publicly accessible property.
+
+  TODO & NOTES:
+    Find a way to make this inaccessible.
+
+    I have tried making the "__napi_jsrc_store__" array a napi ref however this
+    didn't seem to work reliably. Will need play around a bit more to get this
+    working.
+
+  globalThis = {
+    __napi_jsrc_store__: []
+  }
 */
 pub fn initialize(env: &Env) -> napi::Result<()> {
   STORE.with(|init| {

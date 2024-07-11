@@ -1,7 +1,7 @@
 mod async_local;
-mod root;
+mod js_rc;
 mod spawn_local;
 pub mod utils;
 
-pub use root::*;
-pub use spawn_local::*;
+pub use self::js_rc::*;
+pub use self::spawn_local::*;
