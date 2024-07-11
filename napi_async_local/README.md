@@ -88,3 +88,12 @@ fn my_js_func(env: Env, callback: JsRc<JsFunction>) -> napi::Result<JsObject> {
   })
 }
 ```
+
+## Development
+
+To setup the development environment ensure you have installed [`just`](https://github.com/casey/just), then run:
+
+```
+npm install
+just run example-a
+```
