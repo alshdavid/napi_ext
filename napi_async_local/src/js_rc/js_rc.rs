@@ -98,8 +98,7 @@ impl<T: NapiValue> JsRc<T> {
     &self,
     env: &'a Env,
   ) -> napi::Result<JsRcRef<'a, T>> {
-    let value = store::get_store_value(env, &self.identifier)?;
-    let value: T = unsafe { value.cast() };
+    let value = store::get_store_value::<T>(env, &self.identifier)?;
     Ok(JsRcRef {
       inner: value,
       _env: env,

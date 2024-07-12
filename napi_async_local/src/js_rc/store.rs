@@ -94,10 +94,10 @@ pub fn set_store_value(
   Ok(length.get_int32()? - 1)
 }
 
-pub fn get_store_value(
+pub fn get_store_value<R: NapiValue>(
   env: &Env,
   identifier: &i32,
-) -> napi::Result<JsUnknown> {
+) -> napi::Result<R> {
   let index = env.create_int32(*identifier)?;
   let store = get_store(env)?;
   store.get_property_unchecked(index)

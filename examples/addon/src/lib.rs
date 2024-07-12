@@ -12,7 +12,7 @@ use napi_derive::napi;
 pub fn example_a(
   env: Env,
   callback: JsRc<JsFunction>,
-) -> napi::Result<JsObject> {
+) -> napi::Result<()> {
   env.spawn_local(move |env| async move {
     task::sleep(Duration::from_millis(1000)).await;
     callback.inner(&env)?.call_without_args(None)?;
@@ -24,7 +24,7 @@ pub fn example_a(
 pub fn example_b(
   env: Env,
   callback: JsRc<JsFunction>,
-) -> napi::Result<JsObject> {
+) -> napi::Result<()> {
   let (tx, rx) = channel::unbounded();
 
   thread::spawn(move || {
@@ -43,5 +43,15 @@ pub fn example_b(
     }
 
     Ok(())
+  })
+}
+
+#[napi]
+pub fn example_c(
+  env: Env,
+) -> napi::Result<JsObject> {
+  env.spawn_local_promise(move |env| async move {
+    task::sleep(Duration::from_millis(1000)).await;
+    env.create_string("Hello World")
   })
 }
