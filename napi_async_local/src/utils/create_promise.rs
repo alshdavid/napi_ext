@@ -43,6 +43,8 @@ where
         move |r| {
           let resolve_func = store::get_store_value::<JsFunction>(&env, &resolve_func_key).unwrap();
           resolve_func.call(None, &vec![r]).unwrap();
+          store::delete_store_value(resolve_func_key);
+          store::delete_store_value(reject_func_key);
         }
       }),
       Box::new({
@@ -51,12 +53,12 @@ where
           let reject_func = store::get_store_value::<JsFunction>(&env, &reject_func_key).unwrap();
           let error = (&env).create_error(e).unwrap();
           reject_func.call(None, &vec![error]).unwrap();
+          store::delete_store_value(resolve_func_key);
+          store::delete_store_value(reject_func_key);
         }
       }),
     )?;
 
-    store::delete_store_value(resolve_func_key);
-    store::delete_store_value(reject_func_key);
     Ok(())
   })?;
 

@@ -2,14 +2,14 @@ use napi::Env;
 use napi::JsFunction;
 use napi::JsObject;
 use napi::JsString;
-use napi::NapiValue;
+use napi::NapiRaw;
 
 pub fn console_log<V>(
   env: &Env,
   args: &[V],
 ) -> napi::Result<()>
 where
-  V: NapiValue,
+  V: NapiRaw,
 {
   let key_console = env.create_string("console")?;
   let key_log = env.create_string("log")?;
