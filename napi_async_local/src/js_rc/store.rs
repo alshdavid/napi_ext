@@ -4,14 +4,11 @@ use napi::threadsafe_function::ThreadsafeFunctionCallMode;
 use napi::Env;
 use napi::JsFunction;
 use napi::JsNumber;
-use napi::JsObject;
 use napi::JsUnknown;
 use napi::NapiValue;
 use once_cell::unsync::OnceCell;
 
 use super::root::RootRef;
-
-static GLOBAL_KEY: &str = "rc";
 
 thread_local! {
   static GLOBAL: OnceCell<RootRef> = Default::default();
@@ -33,8 +30,7 @@ where
     let jsfn = env.create_function_from_closure::<Vec<JsUnknown>, _>("", |ctx| {
       GLOBAL.with(|global| {
         let global_ref = global.get().unwrap();
-        let global = global_ref.into_inner(&ctx.env)?;
-        let mut store = global.get_named_property_unchecked::<JsObject>(GLOBAL_KEY)?;
+        let mut store = global_ref.into_inner(&ctx.env)?;
         let index = ctx.get::<JsNumber>(1)?;
         store.set_property(index, ctx.env.get_undefined()?)?;
         Ok(vec![])
@@ -52,14 +48,7 @@ where
   })?;
 
   GLOBAL.with(move |inner| -> napi::Result<R> {
-    let global_ref = inner.get_or_try_init(move || -> napi::Result<RootRef> {
-      let global_ref = RootRef::new_object(env)?;
-      let mut global = global_ref.into_inner(&env)?;
-      let obj = env.create_empty_array()?;
-      global.set_named_property(GLOBAL_KEY, obj)?;
-      Ok(global_ref)
-    })?;
-
+    let global_ref = inner.get_or_try_init(move || RootRef::new_array(env))?;
     func(global_ref)
   })
 }
@@ -69,8 +58,7 @@ pub fn set_store_value(
   value: impl NapiValue,
 ) -> napi::Result<i32> {
   with_global(env, |global_ref| {
-    let global = global_ref.into_inner(&env)?;
-    let store = global.get_named_property_unchecked::<JsObject>(GLOBAL_KEY)?;
+    let store = global_ref.into_inner(&env)?;
 
     let push: JsFunction = store.get_named_property_unchecked("push")?;
     let length = JsNumber::from_unknown(push.call(Some(&store), &[value])?)?;
@@ -83,8 +71,7 @@ pub fn get_store_value<R: NapiValue>(
   identifier: &i32,
 ) -> napi::Result<R> {
   with_global(env, |global_ref| {
-    let global = global_ref.into_inner(&env)?;
-    let store = global.get_named_property_unchecked::<JsObject>(GLOBAL_KEY)?;
+    let store = global_ref.into_inner(&env)?;
 
     let index = env.create_int32(*identifier)?;
     store.get_property_unchecked(index)
