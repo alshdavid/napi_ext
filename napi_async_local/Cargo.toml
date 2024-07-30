@@ -2,7 +2,7 @@
 name = "napi_async_local"
 authors = ["David Alsh"]
 homepage = "https://github.com/alshdavid/napi_async_local"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 metadata = {  }
 description = "Extends napi-rs with the ability to run local futures"
