@@ -1,8 +1,8 @@
 [package]
-name = "napi_async_local_macros"
+name = "napi_ext_macros"
 authors = ["David Alsh"]
 homepage = "https://github.com/alshdavid/napi_async_local"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 metadata = {  }
 description = "Extends napi-rs with the ability to run local futures"
