@@ -105,6 +105,13 @@ impl<T: NapiValue> JsRc<T> {
       _env: env,
     })
   }
+
+  pub fn into_inner(
+    &self,
+    env: &Env,
+  ) -> napi::Result<T> {
+    store::get_store_value::<T>(env, &self.identifier)
+  }
 }
 
 impl<T: NapiRaw> Drop for JsRc<T> {

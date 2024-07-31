@@ -1,23 +1,11 @@
-use std::process::Output;
-use std::thread;
-use std::time::Duration;
-
-use async_std::channel;
-use async_std::task;
+use bindgen_prelude::FromNapiValue;
 use napi::*;
-use napi_async_local::napi_async;
-use napi_async_local::prelude::*;
-use napi_derive::napi;
-
-pub async fn example_f(env: Env) -> napi::Result<JsObject> {
-  env.spawn_local_promise::<JsUndefined,_,_>(|env| async move {
-    env.get_undefined()
-  })
-}
-
+use napi_async_local::*;
 
 #[napi_async]
-pub async fn example_e(env: Env) -> napi::Result<JsUndefined> {
-  println!("hi");
+pub async fn example_e(env: Env, value: JsRc<JsString>) -> napi::Result<JsUndefined> {
+  let value = value.into_inner(&env)?;
+  
+  env.console_log(&[value])?;
   env.get_undefined()
 }
