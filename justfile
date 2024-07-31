@@ -36,3 +36,6 @@ run example="example-a":
 fmt:
   cargo +nightly fmt
   
+publish:
+  cargo publish -p napi_ext_macros
+  cargo publish -p napi_ext
