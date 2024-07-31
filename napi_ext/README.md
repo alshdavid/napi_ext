@@ -1,40 +1,44 @@
-# Napi Async Local Extension
+# Napi Extensions
 
-This crate extends [napi-rs](https://github.com/napi-rs/napi-rs) with the ability to run local futures.
+This crate extends [napi-rs](https://github.com/napi-rs/napi-rs) with:
+
+- Local futures runtime
+- `[napi_async]` macro for local futures
+- `env.spawn_local_promise()`
+- `env.spawn_local()`
+- `JsPromise`
+- `JsRc` 
 
 Run local futures with:
 ```rust
 use napi::*;
-use napi_derive::napi;
-use napi_async_local::SpawnLocalExt;
+use napi_ext::*;
 
-#[napi]
-fn my_js_func(env: Env) -> napi::Result<JsObject> {
-  env.spawn_local(|env| async {
-    println!("Running async!");
-    Ok(())
-  })
+#[napi_async]
+async fn my_js_func(env: Env, num: JsNumber) -> napi::Result<JsString> {
+  task::sleep(Duration::from_millis(1000)).await;
+  
+  // Log number in JavaScript context
+  env.console_log(&[num])?;
+
+  // Returns Promise<String>
+  env.create_string("Hello World")
 }
 ```
 
-This allows for the usage of Channels, Timers and other async utilities in Rust without blocking the main JavaScript thread while retaining the capability of interacting with the underlying JavaScript values.
+## Local Thread Futures
+
+Allows for the use of async channels, timers and other async utilities in Rust without blocking the main JavaScript thread while retaining the capability of interacting with the underlying JavaScript values.
 
 ## Installation
 
 Install the crate with:
 
 ```
-cargo add napi_async_local
+cargo add napi_ext
 ```
 
-## Usage
-
-Use `env.spawn_local()` to spawn a non-blocking future on the local thread. Returns a Promise with the value 
-returned in the async closure.
- 
-To ensure the availability of `NapiValue` types beyond the life of the parent function scope,
-ensure that `NapiValue` types that will be used in an async closure are wrapped in a `JsRc` which
-delegates GC to Rust.
+## Examples
 
 ### Timers & Callbacks
 
@@ -42,13 +46,9 @@ delegates GC to Rust.
 use std::time::Duration;
 
 use napi::*;
-use napi_derive::napi;
-use napi_async_local::JsRc;
-use napi_async_local::JsRcExt;
-use napi_async_local::SpawnLocalExt;
-use async_std::task;
+use napi_ext::*;
 
-#[napi]
+#[napi_derive::napi]
 fn my_js_func(env: Env, callback: JsRc<JsFunction>) -> napi::Result<JsObject> {
   env.spawn_local(move |env| async move {
     task::sleep(Duration::from_millis(1000)).await;
@@ -68,7 +68,7 @@ napi.myJsFunc(() => console.log('Waited for 1 second'))
 
 You may combine OS threads with async channels to coordinate off-thread workloads.
 
-I recommend using [async_std](https://github.com/async-rs/async-std) for async utilities
+I recommend using [async_std](https://github.com/async-rs/async-std) or [async-channel](https://github.com/smol-rs/async-channel) for async utilities
 as the custom Futures reactor is not compatible with Tokio utilities.
 
 ```rust
@@ -76,13 +76,10 @@ use std::thread;
 use std::time::Duration;
  
 use napi::*;
-use napi_derive::napi;
-use napi_async_local::JsRc;
-use napi_async_local::JsRcExt;
-use napi_async_local::SpawnLocalExt;
+use napi_ext::*;
 use async_std::channel;
  
-#[napi]
+#[napi_derive::napi]
 fn my_js_func(env: Env, callback: JsRc<JsFunction>) -> napi::Result<JsObject> {
   let (tx, rx) = channel::unbounded();
  

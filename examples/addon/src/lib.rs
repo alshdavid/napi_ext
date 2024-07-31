@@ -5,9 +5,7 @@ use async_std::channel;
 use async_std::task;
 use bindgen_prelude::FromNapiValue;
 use napi::*;
-use napi_async_local::JsRc;
-use napi_async_local::SpawnLocalExt;
-use napi_async_local::*;
+use napi_ext::*;
 use napi_derive::napi;
 
 #[napi]

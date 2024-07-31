@@ -9,7 +9,7 @@ crate-type = ["cdylib"]
 [dependencies]
 napi = { version = "*", default-features = false, features = ["napi8"] }
 napi-derive = "*"
-napi_async_local = { path = "../../napi_async_local" }
+napi_ext = { path = "../../napi_ext" }
 once_cell = "*"
 futures = "*"
 async-std = "*"

@@ -1,5 +1,5 @@
 [package]
-name = "napi_async_local"
+name = "napi_ext"
 authors = ["David Alsh"]
 homepage = "https://github.com/alshdavid/napi_async_local"
 version = "0.3.0"
