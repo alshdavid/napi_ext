@@ -79,7 +79,7 @@ fn convert(input: proc_macro2::TokenStream) -> Result<proc_macro2::TokenStream, 
     insert_env = quote! {env: Env,}
   }
 
-  if func.sig.output == ReturnType::Default {
+  if let ReturnType::Default = func.sig.output {
     let new_output = syn::parse2::<ItemFn>(quote! {fn x() -> () { () }})?;
     func.sig.output = new_output.sig.output;
   }
