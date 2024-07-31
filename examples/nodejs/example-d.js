@@ -1,5 +1,7 @@
 import napi from '@workspace/addon'
 
 console.log('start')
-napi.exampleA((data) => console.log('Rust has run'))
-console.log('not blocked')
+napi.exampleD(new Promise(res => setTimeout(() => {
+  console.log('Done')
+  res()
+}, 2000)))

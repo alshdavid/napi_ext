@@ -1,5 +1,5 @@
 [package]
-name = "napi_async_local"
+name = "napi_async_local_macros"
 authors = ["David Alsh"]
 homepage = "https://github.com/alshdavid/napi_async_local"
 version = "0.2.0"
@@ -8,9 +8,10 @@ metadata = {  }
 description = "Extends napi-rs with the ability to run local futures"
 license = "MIT"
 
+[lib]
+proc-macro = true
+
 [dependencies]
-napi_async_local_macros = { path = "./macros" }
-# napi_async_local_macros = { path = "../napi_async_local_macros" }
-napi = { version = "2", features = ["napi5"]}
-once_cell = "1"
-futures = "0.3"
+syn = "2"
+quote = "1"
+proc-macro2 = "1"

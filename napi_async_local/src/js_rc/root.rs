@@ -18,7 +18,6 @@ pub enum RootObjectType {
   Array,
 }
 
-#[derive(Clone)]
 pub struct RootRef {
   pub raw_ref: sys::napi_ref,
   pub count: Arc<AtomicU32>,

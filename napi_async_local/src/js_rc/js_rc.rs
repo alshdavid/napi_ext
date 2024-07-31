@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::ops::Deref;
+use std::ops::DerefMut;
 use std::rc::Rc;
 
 use napi::bindgen_prelude::FromNapiValue;
@@ -153,5 +154,11 @@ impl<'a, T: NapiValue> Deref for JsRcRef<'a, T> {
 
   fn deref(&self) -> &Self::Target {
     &self.inner
+  }
+}
+
+impl<'a, T: NapiValue> DerefMut for JsRcRef<'a, T> {
+  fn deref_mut(&mut self) -> &mut Self::Target {
+    &mut self.inner
   }
 }
