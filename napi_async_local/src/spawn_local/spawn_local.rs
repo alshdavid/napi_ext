@@ -45,7 +45,6 @@ where
   }))
 }
 
-
 pub fn spawn_local_promise2<R, F, Fut>(
   env: &Env,
   callback: F,
