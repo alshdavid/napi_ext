@@ -3,9 +3,11 @@ use std::time::Duration;
 
 use async_std::channel;
 use async_std::task;
+use bindgen_prelude::FromNapiValue;
 use napi::*;
 use napi_async_local::JsRc;
 use napi_async_local::SpawnLocalExt;
+use napi_async_local::*;
 use napi_derive::napi;
 
 #[napi]
@@ -47,11 +49,20 @@ pub fn example_b(
 }
 
 #[napi]
-pub fn example_c(
-  env: Env,
-) -> napi::Result<JsObject> {
+pub fn example_c(env: Env) -> napi::Result<JsObject> {
   env.spawn_local_promise(move |env| async move {
     task::sleep(Duration::from_millis(1000)).await;
     env.create_string("Hello World")
   })
+}
+
+#[napi_async]
+pub async fn example_d(
+  env: Env,
+  value: JsRc<JsString>,
+) -> napi::Result<JsUndefined> {
+  let value = value.into_inner(&env)?;
+
+  env.console_log(&[value])?;
+  env.get_undefined()
 }

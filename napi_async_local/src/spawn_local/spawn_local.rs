@@ -44,3 +44,23 @@ where
     })
   }))
 }
+
+pub fn spawn_local_promise2<R, F, Fut>(
+  env: &Env,
+  callback: F,
+) -> napi::Result<JsObject>
+where
+  R: NapiValue + 'static,
+  F: FnOnce(Env) -> Fut + 'static,
+  Fut: Future<Output = napi::Result<R>> + 'static,
+{
+  env.create_promise(Box::new(move |env, resolve_func, reject_func| {
+    let future = callback(env);
+    runtime::spawn_async_local(&env, async move {
+      match future.await {
+        Ok(result) => resolve_func(result),
+        Err(error) => reject_func(error),
+      };
+    })
+  }))
+}

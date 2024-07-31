@@ -7,12 +7,12 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = { version = "2.*", default-features = false, features = ["napi8"] }
-napi-derive = "2.*"
+napi = { version = "*", default-features = false, features = ["napi8"] }
+napi-derive = "*"
 napi_async_local = { path = "../../napi_async_local" }
 once_cell = "*"
 futures = "*"
-async-std = "1.12.0"
+async-std = "*"
 
 [build-dependencies]
 napi-build = "2.*"
