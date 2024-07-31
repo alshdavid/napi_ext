@@ -57,10 +57,9 @@ pub fn example_c(env: Env) -> napi::Result<JsObject> {
 #[napi_async]
 pub async fn example_d(
   env: Env,
-  value: JsRc<JsString>,
+  value: JsString,
 ) -> napi::Result<JsUndefined> {
-  let value = value.into_inner(&env)?;
-
+  task::sleep(Duration::from_millis(1000)).await;
   env.console_log(&[value])?;
   env.get_undefined()
 }

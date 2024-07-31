@@ -1,3 +1,3 @@
 import napi from '@workspace/addon'
 
-console.log(await napi.exampleE("hello"))
+console.log({ value: napi.exampleD("hello") })
