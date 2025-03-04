@@ -35,39 +35,36 @@ fn convert(input: proc_macro2::TokenStream) -> Result<proc_macro2::TokenStream, 
       syn::FnArg::Receiver(_r) => continue,
       syn::FnArg::Typed(t) => {
         let pat = &*t.pat;
-        match &*t.ty {
-          syn::Type::Path(p) => {
-            if let Some(segment) = p.path.segments.last() {
-              if segment.ident == "Env" {
-                has_env = true;
-              } else if segment.ident == "JsString"
-                || segment.ident == "JsUnknown"
-                || segment.ident == "JsUndefined"
-                || segment.ident == "JsNull"
-                || segment.ident == "JsBoolean"
-                || segment.ident == "JsBuffer"
-                || segment.ident == "JsArrayBuffer"
-                || segment.ident == "JsTypedArray"
-                || segment.ident == "JsDataView"
-                || segment.ident == "JsNumber"
-                || segment.ident == "JsString"
-                || segment.ident == "JsObject"
-                || segment.ident == "JsGlobal"
-                || segment.ident == "JsDate"
-                || segment.ident == "JsFunction"
-                || segment.ident == "JsExternal"
-                || segment.ident == "JsSymbol"
-                || segment.ident == "JsTimeout"
-                || segment.ident == "JSON"
-              {
-                pre_body.append_all(
-                  quote! {let #pat = #pat.into_rc(&env).unwrap().into_inner(&env).unwrap();
-                  },
-                );
-              };
-            }
+        if let syn::Type::Path(p) = &*t.ty {
+          if let Some(segment) = p.path.segments.last() {
+            if segment.ident == "Env" {
+              has_env = true;
+            } else if segment.ident == "JsString"
+              || segment.ident == "JsUnknown"
+              || segment.ident == "JsUndefined"
+              || segment.ident == "JsNull"
+              || segment.ident == "JsBoolean"
+              || segment.ident == "JsBuffer"
+              || segment.ident == "JsArrayBuffer"
+              || segment.ident == "JsTypedArray"
+              || segment.ident == "JsDataView"
+              || segment.ident == "JsNumber"
+              || segment.ident == "JsString"
+              || segment.ident == "JsObject"
+              || segment.ident == "JsGlobal"
+              || segment.ident == "JsDate"
+              || segment.ident == "JsFunction"
+              || segment.ident == "JsExternal"
+              || segment.ident == "JsSymbol"
+              || segment.ident == "JsTimeout"
+              || segment.ident == "JSON"
+            {
+              pre_body.append_all(
+                quote! {let #pat = #pat.into_rc(&env).unwrap().into_inner(&env).unwrap();
+                },
+              );
+            };
           }
-          _ => {}
         }
         input_names.append_all(pat.to_token_stream());
         input_names.append_all(quote! {,});
@@ -85,7 +82,7 @@ fn convert(input: proc_macro2::TokenStream) -> Result<proc_macro2::TokenStream, 
   }
 
   let ident = func.sig.ident.clone();
-  func.sig.ident = Ident::new(&format!("async_local_{}", ident.to_string()), ident.span());
+  func.sig.ident = Ident::new(&format!("async_local_{}", ident), ident.span());
   let new_ident = &func.sig.ident;
 
   let ret = match &func.sig.output {

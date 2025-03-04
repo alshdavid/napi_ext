@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use std::ptr;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
@@ -53,7 +54,7 @@ impl RootRef {
 
     let mut tsfn = env.create_threadsafe_function::<(), JsUnknown, _>(&jsfn, 0, {
       let count = count.clone();
-      let raw_ref = raw_ref.clone() as usize;
+      let raw_ref = raw_ref as usize;
 
       move |ctx| {
         let mut count: u32 = count.fetch_sub(1, Ordering::Relaxed);
@@ -76,6 +77,7 @@ impl RootRef {
     })
   }
 
+  #[allow(clippy::wrong_self_convention)]
   pub fn into_inner(
     &self,
     env: &Env,
@@ -95,7 +97,7 @@ impl RootRef {
     let mut count: u32 = self.count.fetch_add(1, Ordering::Relaxed);
     check_status!(unsafe { sys::napi_reference_ref(env.raw(), self.raw_ref, &mut count) })?;
     Ok(RootRef {
-      raw_ref: self.raw_ref.clone(),
+      raw_ref: self.raw_ref,
       count: self.count.clone(),
       dropper: self.dropper.clone(),
     })

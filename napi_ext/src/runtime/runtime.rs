@@ -35,11 +35,7 @@ impl LocalRuntime {
 
   pub fn run_until_stalled(thread_notify: ThreadNotifyRef) -> bool {
     LOCAL_POOL.with(move |lp| lp.borrow_mut().run_until_stalled(thread_notify));
-    if Self::count() == 0 {
-      true
-    } else {
-      false
-    }
+    Self::count() == 0
   }
 
   fn count() -> usize {

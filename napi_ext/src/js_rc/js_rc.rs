@@ -133,7 +133,7 @@ impl<T: NapiRaw> Clone for JsRc<T> {
     Self {
       count: self.count.clone(),
       identifier: self.identifier.clone(),
-      kind: self.kind.clone(),
+      kind: self.kind,
     }
   }
 }
@@ -156,7 +156,7 @@ pub struct JsRcRef<'a, T: NapiValue> {
   _env: &'a Env,
 }
 
-impl<'a, T: NapiValue> Deref for JsRcRef<'a, T> {
+impl<T: NapiValue> Deref for JsRcRef<'_, T> {
   type Target = T;
 
   fn deref(&self) -> &Self::Target {
@@ -164,7 +164,7 @@ impl<'a, T: NapiValue> Deref for JsRcRef<'a, T> {
   }
 }
 
-impl<'a, T: NapiValue> DerefMut for JsRcRef<'a, T> {
+impl<T: NapiValue> DerefMut for JsRcRef<'_, T> {
   fn deref_mut(&mut self) -> &mut Self::Target {
     &mut self.inner
   }

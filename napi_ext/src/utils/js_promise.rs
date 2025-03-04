@@ -44,7 +44,7 @@ impl<'a> JsPromise<'a> {
       .env
       .create_function_from_closure(SYM_JS_PROMISE_THEN, move |ctx| {
         let arg0 = ctx.get(0)?;
-        callback(ctx.env.clone(), arg0)
+        callback(*ctx.env, arg0)
       })?;
 
     self
@@ -75,7 +75,7 @@ impl<'a> JsPromise<'a> {
       .env
       .create_function_from_closure(SYM_JS_PROMISE_THEN, move |ctx| {
         let arg0 = ctx.get(0)?;
-        callback(ctx.env.clone(), arg0)
+        callback(*ctx.env, arg0)
       })?;
 
     self

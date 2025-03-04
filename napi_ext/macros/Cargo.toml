@@ -8,6 +8,9 @@ metadata = {  }
 description = "Extends napi-rs with the ability to run local futures"
 license = "MIT"
 
+[lints]
+workspace = true
+
 [lib]
 proc-macro = true
 

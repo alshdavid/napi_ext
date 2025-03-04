@@ -10,9 +10,12 @@ use crate::store;
 const SYM_PROMISE: &str = "Promise";
 const SYM_PROMISE_EXECUTOR: &str = "napi::promise::executor";
 
+pub type PromiseExecutor<Res> =
+  Box<dyn FnOnce(Env, Box<dyn Fn(Res)>, Box<dyn Fn(napi::Error)>) -> napi::Result<()>>;
+
 pub fn create_promise<Res>(
   env: &Env,
-  executor: Box<dyn FnOnce(Env, Box<dyn Fn(Res)>, Box<dyn Fn(napi::Error)>) -> napi::Result<()>>,
+  executor: PromiseExecutor<Res>,
 ) -> napi::Result<JsObject>
 where
   Res: NapiValue + 'static,
@@ -39,20 +42,20 @@ where
     executor(
       ctx.env.to_owned(),
       Box::new({
-        let env = ctx.env.clone();
+        let env = *ctx.env;
         move |r| {
           let resolve_func = store::get_store_value::<JsFunction>(&env, &resolve_func_key).unwrap();
-          resolve_func.call(None, &vec![r]).unwrap();
+          resolve_func.call(None, &[r]).unwrap();
           store::delete_store_value(resolve_func_key);
           store::delete_store_value(reject_func_key);
         }
       }),
       Box::new({
-        let env = ctx.env.clone();
+        let env = *ctx.env;
         move |e| {
           let reject_func = store::get_store_value::<JsFunction>(&env, &reject_func_key).unwrap();
-          let error = (&env).create_error(e).unwrap();
-          reject_func.call(None, &vec![error]).unwrap();
+          let error = (env).create_error(e).unwrap();
+          reject_func.call(None, &[error]).unwrap();
           store::delete_store_value(resolve_func_key);
           store::delete_store_value(reject_func_key);
         }

@@ -8,8 +8,12 @@ metadata = {  }
 description = "Extends napi-rs with the ability to run local futures"
 license = "MIT"
 
+[lints]
+workspace = true
+
 [dependencies]
 napi_ext_macros = { path = "./macros", version = "0.4" }
 napi = { version = "2", features = ["napi5"]}
 once_cell = "1"
 futures = "0.3"
+

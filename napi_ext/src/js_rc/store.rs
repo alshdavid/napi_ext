@@ -30,7 +30,7 @@ where
     let jsfn = env.create_function_from_closure::<Vec<JsUnknown>, _>("", |ctx| {
       GLOBAL.with(|global| {
         let global_ref = global.get().unwrap();
-        let mut store = global_ref.into_inner(&ctx.env)?;
+        let mut store = global_ref.into_inner(ctx.env)?;
         let index = ctx.get::<JsNumber>(1)?;
         store.set_property(index, ctx.env.get_undefined()?)?;
         Ok(vec![])
@@ -58,7 +58,7 @@ pub fn set_store_value(
   value: impl NapiValue,
 ) -> napi::Result<i32> {
   with_global(env, |global_ref| {
-    let store = global_ref.into_inner(&env)?;
+    let store = global_ref.into_inner(env)?;
 
     let push: JsFunction = store.get_named_property_unchecked("push")?;
     let length = JsNumber::from_unknown(push.call(Some(&store), &[value])?)?;
@@ -71,7 +71,7 @@ pub fn get_store_value<R: NapiValue>(
   identifier: &i32,
 ) -> napi::Result<R> {
   with_global(env, |global_ref| {
-    let store = global_ref.into_inner(&env)?;
+    let store = global_ref.into_inner(env)?;
 
     let index = env.create_int32(*identifier)?;
     store.get_property_unchecked(index)

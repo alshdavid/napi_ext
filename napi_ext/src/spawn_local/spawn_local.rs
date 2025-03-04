@@ -16,7 +16,7 @@ where
 {
   let future = callback(env.to_owned());
 
-  runtime::spawn_async_local(&env, async move {
+  runtime::spawn_async_local(env, async move {
     if let Err(error) = future.await {
       eprintln!("Uncaught Napi Error: {}", error);
     };

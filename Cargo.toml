@@ -6,3 +6,12 @@ members = [
     "./examples/addon",
     "napi_ext",
 ]
+
+[workspace.lints.clippy]
+module_inception = "allow"
+rust-2018-idioms = "warn"
+
+# [workspace.lints.clippy]
+
+# [workspace.lints.rust]
+# unsafe_code = "forbid"

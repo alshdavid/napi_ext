@@ -1,9 +1,12 @@
+use napi::bindgen_prelude::ToNapiValue;
 use napi::Env;
 use napi::JsObject;
 use napi::NapiValue;
 
 use super::console_log;
 use super::create_promise;
+use super::spawn_thread;
+use super::PromiseExecutor;
 
 pub trait UtilsExt {
   /// Runs console.log() in the JavaScript context.
@@ -17,10 +20,19 @@ pub trait UtilsExt {
 
   fn create_promise<Res>(
     &self,
-    executor: Box<dyn FnOnce(Env, Box<dyn Fn(Res)>, Box<dyn Fn(napi::Error)>) -> napi::Result<()>>,
+    executor: PromiseExecutor<Res>,
   ) -> napi::Result<JsObject>
   where
     Res: NapiValue + 'static;
+
+  fn spawn_thread<ThreadFunc, NapiFunc, NapiRet>(
+    &self,
+    func: ThreadFunc,
+  ) -> napi::Result<JsObject>
+  where
+    ThreadFunc: FnOnce() -> napi::Result<NapiFunc> + Send + 'static,
+    NapiFunc: FnOnce(Env) -> napi::Result<NapiRet> + Send + 'static,
+    NapiRet: ToNapiValue;
 }
 
 impl UtilsExt for Env {
@@ -36,11 +48,23 @@ impl UtilsExt for Env {
 
   fn create_promise<Res>(
     &self,
-    executor: Box<dyn FnOnce(Env, Box<dyn Fn(Res)>, Box<dyn Fn(napi::Error)>) -> napi::Result<()>>,
+    executor: PromiseExecutor<Res>,
   ) -> napi::Result<JsObject>
   where
     Res: NapiValue + 'static,
   {
     create_promise(self, executor)
+  }
+
+  fn spawn_thread<ThreadFunc, NapiFunc, NapiRet>(
+    &self,
+    func: ThreadFunc,
+  ) -> napi::Result<JsObject>
+  where
+    ThreadFunc: FnOnce() -> napi::Result<NapiFunc> + Send + 'static,
+    NapiFunc: FnOnce(Env) -> napi::Result<NapiRet> + Send + 'static,
+    NapiRet: ToNapiValue,
+  {
+    spawn_thread(self, func)
   }
 }
