@@ -1,3 +1,4 @@
+mod internal;
 mod js_rc;
 mod runtime;
 mod spawn_local;

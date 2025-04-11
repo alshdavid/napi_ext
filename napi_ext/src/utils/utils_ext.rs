@@ -11,12 +11,10 @@ use super::PromiseExecutor;
 pub trait UtilsExt {
   /// Runs console.log() in the JavaScript context.
   /// useful for debugging [`NapiValue`] types
-  fn console_log<V>(
+  fn console_log<V: NapiValue>(
     &self,
     args: &[V],
-  ) -> napi::Result<()>
-  where
-    V: NapiValue;
+  ) -> napi::Result<()>;
 
   fn create_promise<Res>(
     &self,
@@ -36,13 +34,10 @@ pub trait UtilsExt {
 }
 
 impl UtilsExt for Env {
-  fn console_log<V>(
+  fn console_log<V: NapiValue>(
     &self,
     args: &[V],
-  ) -> napi::Result<()>
-  where
-    V: NapiValue,
-  {
+  ) -> napi::Result<()> {
     console_log(self, args)
   }
 

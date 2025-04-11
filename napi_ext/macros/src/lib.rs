@@ -98,14 +98,7 @@ fn convert(input: proc_macro2::TokenStream) -> Result<proc_macro2::TokenStream, 
       #pre_body
 
       let fut = #new_ident(#input_names);
-      env.spawn_local_promise(move |env| async move {
-        unsafe {
-          let env_raw = env.raw();
-          <#ret as napi::bindgen_prelude::ToNapiValue>::
-            to_napi_value(env_raw, fut.await)
-            .and_then(|v| JsUnknown::from_napi_value(env_raw, v))
-        }
-      })
+      env.spawn_local_promise(fut)
     }
   })
 }

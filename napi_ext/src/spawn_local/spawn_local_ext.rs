@@ -78,12 +78,11 @@ pub trait SpawnLocalExt {
   ///   })
   /// }
   /// ```
-  fn spawn_local<F, Fut>(
+  fn spawn_local<Fut>(
     &self,
-    callback: F,
+    future: Fut,
   ) -> napi::Result<()>
   where
-    F: FnOnce(Env) -> Fut + 'static,
     Fut: Future<Output = napi::Result<()>> + 'static;
 
   /// Spawns a non-blocking future on the local thread. Returns a Promise with the value
@@ -123,37 +122,34 @@ pub trait SpawnLocalExt {
   ///   })
   /// }
   /// ```
-  fn spawn_local_promise<R, F, Fut>(
+  fn spawn_local_promise<R, Fut>(
     &self,
-    callback: F,
+    future: Fut,
   ) -> napi::Result<JsObject>
   where
     R: NapiValue + 'static,
-    F: FnOnce(Env) -> Fut + 'static,
     Fut: Future<Output = napi::Result<R>> + 'static;
 }
 
 impl SpawnLocalExt for Env {
-  fn spawn_local<F, Fut>(
+  fn spawn_local<Fut>(
     &self,
-    callback: F,
+    future: Fut,
   ) -> napi::Result<()>
   where
-    F: FnOnce(Env) -> Fut + 'static,
     Fut: Future<Output = napi::Result<()>> + 'static,
   {
-    spawn_local(self, callback)
+    spawn_local(self, future)
   }
 
-  fn spawn_local_promise<R, F, Fut>(
+  fn spawn_local_promise<R, Fut>(
     &self,
-    callback: F,
+    future: Fut,
   ) -> napi::Result<JsObject>
   where
     R: NapiValue + 'static,
-    F: FnOnce(Env) -> Fut + 'static,
     Fut: Future<Output = napi::Result<R>> + 'static,
   {
-    spawn_local_promise(self, callback)
+    spawn_local_promise(self, future)
   }
 }

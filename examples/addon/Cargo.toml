@@ -16,6 +16,7 @@ napi_ext = { path = "../../napi_ext" }
 once_cell = "*"
 futures = "*"
 async-std = "*"
+kanal = "0.1"
 
 [build-dependencies]
 napi-build = "2.*"

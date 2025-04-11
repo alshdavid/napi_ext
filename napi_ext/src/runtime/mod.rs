@@ -1,63 +1,149 @@
-mod executor;
-mod runtime;
-mod waker;
+pub mod executor;
 
+use std::cell::LazyCell;
+use std::cell::OnceCell;
+use std::cell::RefCell;
+use std::ffi::c_void;
 use std::future::Future;
+use std::pin::Pin;
+use std::sync::mpsc::channel;
+use std::thread;
 
-use executor::ThreadNotifyRef;
+use futures::task::LocalSpawnExt;
+use napi::sys as napi_sys;
 use napi::Env;
-use napi::JsUnknown;
-use waker::LocalWaker;
-use waker::WakerEvent;
 
-use self::runtime::LocalRuntime;
+use self::executor::wait_for_wake;
+use self::executor::LocalPool;
+use self::executor::LocalSpawner;
+use self::executor::ThreadNotify;
+use self::executor::ThreadNotifyRef;
+use crate::internal::declare_threadsafe_function;
 
-/// Schedule a future to run asynchronously on the local JavaScript thread.
-/// The future's execution will not block the local thread.
-pub fn spawn_async_local(
-  env: &Env,
-  future: impl Future + 'static,
-) -> napi::Result<()> {
-  // Add a future to the future pool to be executed
-  // whenever the Nodejs event loop is free to do so
-  LocalRuntime::queue_future(future);
+type LocalFuture = Pin<Box<dyn Future<Output = ()>>>;
 
-  // If there are tasks in flight then the executor
-  // is already running and should be reused
-  if LocalRuntime::futures_count() > 1 {
-    return Ok(());
+thread_local! {
+  // Custom futures runtime that executes futures on the main thread but can use
+  // external threads to wait on futures to pause/resume.
+  static LOCAL_POOL: LazyCell<RefCell<LocalPool>> = LazyCell::default();
+  static SPAWNER: LazyCell<LocalSpawner> = LazyCell::new(|| LOCAL_POOL.with(|ex| ex.borrow_mut().spawner()));
+
+  // The Nodejs thread safe function used to run futures within
+  static EXECUTE_FUTURES: OnceCell<*mut napi_sys::napi_threadsafe_function__> = OnceCell::default();
+
+  // This is a dedicated thread waiting on pending futures to resume.
+  // Once they resume it will run the threadsafe function to drive
+  // the futures until they complete or pause again.
+  static THREAD_NOTIFY: LazyCell<ThreadNotifyRef> = LazyCell::new(|| {
+    let (tx_thread_notify, rx_thread_notify) = channel::<ThreadNotifyRef>();
+    let tsfn = EXECUTE_FUTURES.with(|v| (*v.get().unwrap()) as usize);
+
+    thread::spawn(move || {
+      let thread_notify = ThreadNotify::new();
+      tx_thread_notify.send(thread_notify.clone()).unwrap();
+      let tsfn = tsfn as *mut napi_sys::napi_threadsafe_function__;
+
+      loop {
+        wait_for_wake(&thread_notify);
+        unsafe {
+          let fut_ptr = Box::into_raw(Box::new(None::<LocalFuture>));
+          napi_sys::napi_call_threadsafe_function(tsfn, fut_ptr.cast(), 0);
+        }
+      }
+    });
+
+    rx_thread_notify.recv().unwrap()
+  });
+}
+
+// This is the callback for the thread safe function used to drive
+// the futures forward on the main thread
+unsafe extern "C" fn async_runtime_execute(
+  env: napi_sys::napi_env,
+  _js_callback: napi_sys::napi_value,
+  _context: *mut c_void,
+  data: *mut c_void,
+) {
+  let fut_ptr = data.cast::<Option<LocalFuture>>();
+  let fut = Box::from_raw(fut_ptr);
+
+  if let Some(fut) = *fut {
+    SPAWNER
+      .with(move |ls| {
+        ls.spawn_local(async move {
+          fut.await;
+        })
+      })
+      .expect("Unable to spawn future on local pool");
   }
 
-  // The futures executor runs on the main thread thread but
-  // the waker runs on another thread.
-  //
-  // The main thread executor will run the contained futures
-  // and as soon as they stall (e.g. waiting for a channel, timer, etc),
-  // the executor will immediately yield back to the JavaScript event loop.
-  //
-  // This "parks" the executer, which normally means the thread
-  // is block - however we cannot do that here so instead, there
-  // is a sacrificial "waker" thread who's only job is to sleep/wake and
-  // signal to Nodejs that futures need to be run.
-  //
-  // The waker thread notifies the main thread of pending work by
-  // running the futures executor within a threadsafe function
-  let jsfn = env.create_function_from_closure::<Vec<JsUnknown>, _>("", |_| Ok(vec![]))?;
+  let pending_futures = THREAD_NOTIFY.with(|thread_notify| {
+    LOCAL_POOL.with(move |lp| {
+      let mut lp = lp.borrow_mut();
+      lp.run_until_stalled(&thread_notify)
+    })
+  });
 
-  LocalWaker::send(WakerEvent::Init(
-    env.create_threadsafe_function::<ThreadNotifyRef, Vec<JsUnknown>, _>(&jsfn, 0, |ctx| {
-      let thread_notify = ctx.value;
-      let done = LocalRuntime::run_until_stalled(thread_notify);
+  // If there are no more futures pending then
+  // allow the nodejs process to exit
+  if pending_futures == 0 {
+    EXECUTE_FUTURES.with(|v| {
+      let tsfn = *v.get().unwrap();
+      napi_sys::napi_unref_threadsafe_function(env, tsfn);
+    });
+  }
+}
 
-      if done {
-        LocalWaker::send(WakerEvent::Done);
-      } else {
-        LocalWaker::send(WakerEvent::Next);
-      }
+#[allow(dead_code)]
+pub fn spawn_local<Func, Fut>(
+  env: Env,
+  fut: Func,
+) where
+  Func: 'static + Send + FnOnce(Env) -> Fut,
+  Fut: Future<Output = ()>,
+{
+  let env_raw = env.raw();
 
-      Ok(vec![])
-    })?,
-  ));
+  // Initialize runtime if not already running
+  let tsfn = EXECUTE_FUTURES.with(move |tsfn| {
+    *tsfn
+      .get_or_init(move || {
+        declare_threadsafe_function(env_raw, "async_runtime_execute", async_runtime_execute)
+      })
+  });
+
+  // Ensure the thread safe function will prevent Nodejs from exiting until the async task is done
+  unsafe { napi_sys::napi_ref_threadsafe_function(env_raw, tsfn) };
+
+  // Pin the future to the current thread and send it to the thread safe function
+  let fut = Box::pin(fut(env)) as Pin<Box<dyn Future<Output = ()>>>;
+  let fut_ptr = Box::into_raw(Box::new(Some(fut)));
+  unsafe { napi_sys::napi_call_threadsafe_function(tsfn, fut_ptr.cast(), 0) };
+}
+
+pub fn spawn_local_fut<Fut>(
+  env: Env,
+  fut: Fut,
+) -> napi::Result<()> where
+  Fut: Future<Output = ()>,
+{
+  let env_raw = env.raw();
+
+  // Initialize runtime if not already running
+  let tsfn = EXECUTE_FUTURES.with(move |tsfn| {
+    *tsfn
+      .get_or_init(move || {
+        declare_threadsafe_function(env_raw, "async_runtime_execute", async_runtime_execute)
+      })
+  });
+
+  // Ensure the thread safe function will prevent Nodejs from exiting until the async task is done
+  unsafe { napi_sys::napi_ref_threadsafe_function(env_raw, tsfn) };
+
+  // Pin the future to the current thread and send it to the thread safe function
+  let fut = Box::pin(fut) as Pin<Box<dyn Future<Output = ()>>>;
+  let fut_ptr = Box::into_raw(Box::new(Some(fut)));
+  unsafe { napi_sys::napi_call_threadsafe_function(tsfn, fut_ptr.cast(), 0) };
 
   Ok(())
 }

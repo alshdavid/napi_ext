@@ -5,7 +5,7 @@ use napi::JsFunction;
 use napi::JsObject;
 use napi::NapiValue;
 
-use crate::store;
+use crate::JsRc;
 
 const SYM_PROMISE: &str = "Promise";
 const SYM_PROMISE_EXECUTOR: &str = "napi::promise::executor";
@@ -36,28 +36,21 @@ where
     let resolve_func_js: JsFunction = ctx.get(0)?;
     let reject_func: JsFunction = ctx.get(1)?;
 
-    let resolve_func_key = store::set_store_value(ctx.env, resolve_func_js)?;
-    let reject_func_key = store::set_store_value(ctx.env, reject_func)?;
+    let resolve_func = JsRc::new(ctx.env, resolve_func_js)?;
+    let reject_func = JsRc::new(ctx.env, reject_func)?;
 
     executor(
       ctx.env.to_owned(),
       Box::new({
-        let env = *ctx.env;
         move |r| {
-          let resolve_func = store::get_store_value::<JsFunction>(&env, &resolve_func_key).unwrap();
           resolve_func.call(None, &[r]).unwrap();
-          store::delete_store_value(resolve_func_key);
-          store::delete_store_value(reject_func_key);
         }
       }),
       Box::new({
         let env = *ctx.env;
         move |e| {
-          let reject_func = store::get_store_value::<JsFunction>(&env, &reject_func_key).unwrap();
           let error = (env).create_error(e).unwrap();
           reject_func.call(None, &[error]).unwrap();
-          store::delete_store_value(resolve_func_key);
-          store::delete_store_value(reject_func_key);
         }
       }),
     )?;

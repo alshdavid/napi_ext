@@ -149,8 +149,8 @@ impl LocalPool {
   #[allow(unused)]
   pub fn run_until_stalled(
     &mut self,
-    thread_notify: &Arc<ThreadNotify>,
-  ) -> usize {
+    thread_notify: Arc<ThreadNotify>,
+  ) {
     run_executor(thread_notify.clone(), |cx| match self.poll_pool(cx) {
       // The pool is empty.
       Poll::Ready(()) => Poll::Ready(()),
@@ -163,7 +163,6 @@ impl LocalPool {
         }
       }
     });
-    self.pool.len()
   }
 
   fn poll_pool(

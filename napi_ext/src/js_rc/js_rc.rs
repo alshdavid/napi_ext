@@ -1,171 +1,126 @@
-use std::cell::RefCell;
+#![allow(dead_code)]
+use std::cell::OnceCell;
 use std::marker::PhantomData;
 use std::ops::Deref;
-use std::ops::DerefMut;
-use std::rc::Rc;
+use std::ptr;
 
-use napi::bindgen_prelude::FromNapiValue;
-use napi::sys::napi_env;
-use napi::sys::napi_value;
+use napi::check_status;
+use napi::sys as napi_sys;
 use napi::Env;
 use napi::NapiRaw;
 use napi::NapiValue;
 
-use super::store;
+thread_local! {
+  static NAPI_ENV: OnceCell<*mut napi_sys::napi_env__> = OnceCell::default();
+}
 
-/// Reference counter for JavaScript values.
-///
-/// Moves ownership of a JavaScript value to the Rust addon, preventing
-/// Nodejs's GC from dropping the value.
-///
-/// The value will be dropped when the reference count goes to 0
-///
-/// ### Usage:
-///
-/// #### From Napi Function Argument
-///
-/// ```
-/// use napi::*;
-/// use napi_derive::napi;
-/// use napi_async_local::JsRc;
-///
-/// #[napi]
-/// fn my_js_func(env: Env, callback: JsRc<JsFunction>) -> napi::Result<()> {
-///   let inner = callback.inner(&env)?;
-///   inner.call_without_args(None);
-///   Ok(())
-/// }
-/// ```
-///
-/// #### Apply to Existing Value
-///
-/// Simplified with [`super::JsRcExt`]
-///
-/// ```
-/// use napi::*;
-/// use napi_derive::napi;
-/// use napi_async_local::JsRc;
-/// use napi_async_local::UtilsExt;
-///
-/// #[napi]
-/// fn my_js_func(env: Env) -> napi::Result<()> {
-///   let value = env.create_string("hello world")?;
-///   let value_ref = JsRc::new(value)?;
-///   let inner = value_ref.inner(&env)?;
-///   
-///   env.console_log(&[inner])?; // From UtilsExt
-///   Ok(())
-/// }
-/// ```
-///
-/// #### Apply to Existing Value [`super::JsRcExt`]
-///
-/// ```
-/// use napi::*;
-/// use napi_derive::napi;
-/// use napi_async_local::JsRcExt;
-/// use napi_async_local::UtilsExt;
-///
-/// #[napi]
-/// fn my_js_func(env: Env) -> napi::Result<()> {
-///   let value = env.create_string("hello world")?;
-///   let value_ref = value.into_rc(&env)?; // From JsRcExt
-///   let inner = value_ref.inner(&env)?;
-///   
-///   env.console_log(&[inner])?; // From UtilsExt
-///   Ok(())
-/// }
-/// ```
-pub struct JsRc<T: NapiRaw> {
-  count: Rc<RefCell<usize>>,
-  identifier: Rc<i32>,
-  kind: PhantomData<T>,
+unsafe impl<T> Send for JsRc<T> {}
+
+pub struct JsRc<T> {
+  raw_ref: napi_sys::napi_ref,
+  _inner: PhantomData<T>,
 }
 
 impl<T: NapiValue> JsRc<T> {
   pub fn new(
     env: &Env,
-    value: T,
+    inner: T,
   ) -> napi::Result<Self> {
+    Self::new_raw(env.raw(), unsafe { inner.raw() })
+  }
+
+  fn new_raw(
+    raw_env: napi_sys::napi_env,
+    inner_raw: napi_sys::napi_value,
+  ) -> napi::Result<Self> {
+    let raw_env = NAPI_ENV.with(|f| *f.get_or_init(|| raw_env));
+
+    let obj = {
+      let mut raw_value = ptr::null_mut();
+      check_status!(unsafe {
+        napi_sys::napi_create_array_with_length(raw_env, 1, &mut raw_value)
+      })?;
+      raw_value
+    };
+
+    check_status!(unsafe { napi_sys::napi_set_element(raw_env, obj, 0, inner_raw.cast()) })?;
+
+    let mut raw_ref = ptr::null_mut();
+    check_status!(unsafe { napi_sys::napi_create_reference(raw_env, obj, 1, &mut raw_ref) })?;
+
     Ok(Self {
-      count: Rc::new(RefCell::new(1)),
-      identifier: Rc::new(store::set_store_value(env, value)?),
-      kind: Default::default(),
+      raw_ref,
+      _inner: Default::default(),
     })
   }
 
-  /// Obtain a reference to the inner JavaScript value
-  pub fn inner<'a>(
-    &self,
-    env: &'a Env,
-  ) -> napi::Result<JsRcRef<'a, T>> {
-    let value = store::get_store_value::<T>(env, &self.identifier)?;
-    Ok(JsRcRef {
-      inner: value,
-      _env: env,
-    })
-  }
+  pub fn get(&self) -> napi::Result<T> {
+    let env_raw = NAPI_ENV.with(|f| *f.get().unwrap());
 
-  pub fn into_inner(
-    &self,
-    env: &Env,
-  ) -> napi::Result<T> {
-    store::get_store_value::<T>(env, &self.identifier)
+    let mut napi_value = ptr::null_mut();
+    unsafe { napi_sys::napi_get_reference_value(env_raw, self.raw_ref, &mut napi_value) };
+
+    let mut raw_value = ptr::null_mut();
+    unsafe { napi_sys::napi_get_element(env_raw, napi_value, 0, &mut raw_value) };
+
+    let value = unsafe { T::from_raw_unchecked(env_raw, raw_value) };
+
+    Ok(value)
   }
 }
 
-impl<T: NapiRaw> Drop for JsRc<T> {
-  fn drop(&mut self) {
-    let mut count = self.count.borrow_mut();
-    *count -= 1;
-    if *count == 0 {
-      store::delete_store_value(*self.identifier)
-    }
-  }
-}
-
-impl<T: NapiRaw> Clone for JsRc<T> {
-  /// Clone the container and increment the reference count by 1
+impl<T> Clone for JsRc<T> {
   fn clone(&self) -> Self {
-    let mut count = self.count.borrow_mut();
-    *count += 1;
+    let env_raw = NAPI_ENV.with(|f| *f.get().unwrap());
+
+    unsafe { napi_sys::napi_reference_ref(env_raw, self.raw_ref.cast(), ptr::null_mut()) };
 
     Self {
-      count: self.count.clone(),
-      identifier: self.identifier.clone(),
-      kind: self.kind,
+      raw_ref: self.raw_ref.clone(),
+      _inner: self._inner.clone(),
     }
   }
 }
 
-// Makes the value usable as an argument in a Napi function
-impl<T: NapiValue> FromNapiValue for JsRc<T> {
-  unsafe fn from_napi_value(
-    env: napi_env,
-    napi_val: napi_value,
-  ) -> napi::Result<Self> {
-    let value = T::from_raw_unchecked(env, napi_val);
-    let env = Env::from_raw(env);
-    Self::new(&env, value)
+impl<T> Drop for JsRc<T> {
+  fn drop(&mut self) {
+    let env_raw = NAPI_ENV.with(|f| *f.get().unwrap());
+    let mut count = 0;
+    unsafe { napi_sys::napi_reference_unref(env_raw, self.raw_ref.cast(), &mut count) };
+    if count == 0 {
+      unsafe { napi_sys::napi_delete_reference(env_raw, self.raw_ref.cast()) };
+    }
   }
 }
 
-/// Container for a referenced value within a [`JsRc`]
-pub struct JsRcRef<'a, T: NapiValue> {
-  inner: T,
-  _env: &'a Env,
-}
-
-impl<T: NapiValue> Deref for JsRcRef<'_, T> {
+impl<T: NapiValue> Deref for JsRc<T> {
   type Target = T;
 
   fn deref(&self) -> &Self::Target {
-    &self.inner
+    let value = self.get().unwrap();
+    let value = Box::leak(Box::new(value));
+    value
   }
 }
 
-impl<T: NapiValue> DerefMut for JsRcRef<'_, T> {
-  fn deref_mut(&mut self) -> &mut Self::Target {
-    &mut self.inner
+impl<T: NapiValue> NapiRaw for JsRc<T> {
+  unsafe fn raw(&self) -> napi_sys::napi_value {
+    self.get().unwrap().raw()
+  }
+}
+
+impl<T: NapiValue> NapiValue for JsRc<T> {
+  unsafe fn from_raw(
+    env: napi_sys::napi_env,
+    value: napi_sys::napi_value,
+  ) -> napi::Result<Self> {
+    JsRc::new_raw(env, value)
+  }
+
+  unsafe fn from_raw_unchecked(
+    env: napi_sys::napi_env,
+    value: napi_sys::napi_value,
+  ) -> Self {
+    JsRc::new_raw(env, value).unwrap()
   }
 }

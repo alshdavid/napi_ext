@@ -2,7 +2,7 @@ use napi::Env;
 use napi::NapiRaw;
 use napi::NapiValue;
 
-use crate::JsRc;
+use super::JsRc;
 
 pub trait JsRcExt<T: NapiRaw> {
   /// Wraps the JavaScript value in a reference counted container
